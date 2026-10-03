@@ -1,0 +1,402 @@
+========================================================================
+GESPER — GESTOR PERSONAL
+Documento de traspaso para colaboradores
+Última actualización: <pon la fecha>
+========================================================================
+
+------------------------------------------------------------------------
+1. ¿QUÉ ES GESPER?
+------------------------------------------------------------------------
+
+Gesper es una aplicación web personal (no multiusuario por ahora) para
+llevar el control de:
+
+  - Productos (catálogo maestro).
+  - Almacén (stock, entradas, salidas, mayoristas, ofertas).
+  - Ventas (punto de venta con conteo diario inicio/final).
+  - Deudas (clientes que deben, con abonos parciales).
+  - Finanzas personales (ingresos y gastos).
+  - Monedas y tasas de cambio.
+  - Cierre de día (cuadre + imagen resumen generada con Canvas).
+  - Historial / auditoría de todo lo que ocurre.
+
+La app es mobile-first, responsive, y funciona como SPA (Single Page
+Application) usando únicamente HTML, CSS y JavaScript Vanilla.
+
+------------------------------------------------------------------------
+2. STACK TÉCNICO
+------------------------------------------------------------------------
+
+  - HTML5
+  - CSS3 (con variables CSS, mobile-first)
+  - JavaScript Vanilla (ES Modules nativos, sin bundler)
+  - Sin frameworks (nada de React, Vue, Angular).
+  - Sin build tools (nada de Webpack, Vite, etc.).
+  - Sin dependencias externas por ahora.
+
+  Servidor de desarrollo: cualquier servidor HTTP estático.
+  Recomendado:
+      python -m http.server 5173
+      npx serve .
+
+  IMPORTANTE: no abrir index.html con doble clic. Los ES Modules no
+  funcionan con el protocolo file://. Hay que servirlo por HTTP.
+
+------------------------------------------------------------------------
+3. FILOSOFÍA DE TRABAJO
+------------------------------------------------------------------------
+
+  a) Arquitectura por capas.
+     Cada capa tiene una responsabilidad clara y NO invade a las otras.
+
+        core/       -> infraestructura interna (router, store, dom).
+        shared/     -> utilidades puras reutilizables.
+        data/       -> repositorios. Único lugar que toca la "base de datos".
+        services/   -> reglas de negocio. Único lugar con lógica de dominio.
+        modules/    -> vistas (una carpeta por pantalla).
+        components/ -> UI reutilizable entre módulos.
+
+  b) Reglas de oro (NO romper):
+     - Los módulos NUNCA acceden a data/ directamente. Siempre pasan por
+       services/.
+     - Los services NUNCA tocan el DOM.
+     - Los repositorios NUNCA contienen reglas de negocio. Solo guardan
+       y devuelven datos.
+     - Un módulo NUNCA importa otro módulo. Si comparten algo, va a
+       components/ o shared/.
+     - Cada archivo exporta con un nombre predecible (ver sección 6).
+
+  c) Mobile-first.
+     Todo se diseña primero para pantalla de 360px. Luego se escala con
+     media queries hacia tablet (768px) y desktop (1024px+).
+
+  d) Sin dependencias innecesarias.
+     Si se puede hacer con JS puro, se hace con JS puro. Solo se agrega
+     una librería si aporta un valor enorme (ej: Chart.js para gráficos
+     en el futuro).
+
+------------------------------------------------------------------------
+4. ESTRUCTURA DE CARPETAS
+------------------------------------------------------------------------
+
+gesper/
+├── index.html                  Punto de entrada. Solo estructura base.
+├── README.md
+├── docs/
+│   ├── arquitectura.md         Documento técnico de arquitectura.
+│   └── TRASPASO.txt            Este archivo.
+│
+├── public/
+│   └── favicon.ico
+│
+├── src/
+│   ├── main.js                 Arranca la app: layout + rutas + router.
+│   ├── routes.js               Registra todas las rutas con sus vistas.
+│   │
+│   ├── core/                   Núcleo interno.
+│   │   ├── router.js           Router SPA por hash (#/ruta).
+│   │   ├── store.js            Estado global reactivo (pub/sub simple).
+│   │   ├── events.js           Bus de eventos global.
+│   │   └── dom.js              Helpers: el(), clear().
+│   │
+│   ├── shared/                 Utilidades puras.
+│   │   ├── format.js           Formateo de moneda, fechas, números.
+│   │   ├── validators.js       Validaciones de formularios.
+│   │   ├── storage.js          Wrapper de localStorage.
+│   │   ├── id.js               Generador de IDs únicos.
+│   │   └── constants.js        Canales, estados, tipos.
+│   │
+│   ├── data/                   Repositorios (acceso a datos).
+│   │   ├── db.js               Conexión a la "BD" (hoy localStorage).
+│   │   ├── productos.repo.js
+│   │   ├── almacen.repo.js
+│   │   ├── ventas.repo.js
+│   │   ├── deudas.repo.js
+│   │   ├── finanzas.repo.js
+│   │   ├── monedas.repo.js
+│   │   ├── cuadre.repo.js
+│   │   └── historial.repo.js
+│   │
+│   ├── services/               Reglas de negocio.
+│   │   ├── productos.service.js
+│   │   ├── almacen.service.js
+│   │   ├── ventas.service.js
+│   │   ├── deudas.service.js
+│   │   ├── finanzas.service.js
+│   │   ├── monedas.service.js
+│   │   ├── cuadre.service.js
+│   │   ├── dashboard.service.js
+│   │   └── historial.service.js
+│   │
+│   ├── modules/                Vistas (una por pantalla).
+│   │   ├── dashboard/
+│   │   │   └── dashboard.view.js
+│   │   ├── productos/
+│   │   │   ├── productos.view.js
+│   │   │   └── productos.form.js
+│   │   ├── almacen/
+│   │   │   ├── almacen.view.js
+│   │   │   └── almacen.form.js
+│   │   ├── ventas/
+│   │   │   ├── ventas.view.js
+│   │   │   └── ventas.conteo.js
+│   │   ├── deudas/
+│   │   │   ├── deudas.view.js
+│   │   │   └── deudas.abonos.js
+│   │   ├── finanzas/
+│   │   │   ├── finanzas.view.js
+│   │   │   └── finanzas.form.js
+│   │   ├── monedas/
+│   │   │   └── monedas.view.js
+│   │   ├── cierre/
+│   │   │   ├── cierre.view.js
+│   │   │   └── cierre.canvas.js
+│   │   ├── mas/
+│   │   │   └── mas.view.js     Pantalla menú "Más" (móvil).
+│   │   └── historial/
+│   │       └── historial.view.js
+│   │
+│   ├── components/             UI reutilizable.
+│   │   ├── layout/
+│   │   │   ├── sidebar.js      Navegación desktop.
+│   │   │   ├── bottomnav.js    Navegación móvil.
+│   │   │   └── header.js
+│   │   └── ui/
+│   │       ├── button.js
+│   │       ├── input.js
+│   │       ├── modal.js
+│   │       ├── card.js
+│   │       ├── table.js
+│   │       ├── toast.js
+│   │       └── confirm.js
+│   │
+│   └── styles/
+│       ├── reset.css
+│       ├── variables.css       Colores, tipografía, espaciado.
+│       ├── layout.css          Grid principal, sidebar, bottom-nav.
+│       └── main.css            Importa todos los css.
+│
+└── (futuro) server/            Backend cuando migremos de localStorage.
+
+------------------------------------------------------------------------
+5. CÓMO FUNCIONA LA APP (flujo técnico)
+------------------------------------------------------------------------
+
+  1. El navegador carga index.html.
+  2. index.html carga src/main.js como módulo.
+  3. main.js:
+       a) Renderiza sidebar (desktop) y bottom-nav (móvil).
+       b) Llama a registerRoutes(router).
+       c) Llama a router.start(container) para renderizar la primera vista.
+  4. Cada vez que cambia el hash (#/productos, #/ventas, etc.):
+       a) El router detecta el cambio.
+       b) Limpia el contenedor.
+       c) Llama a la función de la vista correspondiente.
+       d) La vista retorna un objeto con destroy() opcional para limpiar
+          listeners cuando se cambia de pantalla.
+  5. Las vistas NO saben cómo obtener datos. Llaman a services.
+  6. Los services llaman a data/ (repositorios).
+  7. Los repositorios hoy usan localStorage, mañana usarán fetch() contra
+     una API REST. La interfaz del repositorio no debe cambiar.
+
+------------------------------------------------------------------------
+6. CONVENCIONES DE CÓDIGO
+------------------------------------------------------------------------
+
+  a) Nombres de archivos:
+       <dominio>.view.js     -> vista principal de un módulo.
+       <dominio>.form.js     -> formulario de un módulo.
+       <dominio>.repo.js     -> repositorio (data).
+       <dominio>.service.js  -> servicio de negocio.
+
+  b) Nombres de exports:
+       export function productosView(root) { ... }
+       export function productosRepo() { ... }
+       export const productosService = { ... }
+
+     El nombre exportado debe coincidir con el nombre del archivo,
+     usando camelCase. Esto evita errores como:
+       "does not provide an export named X"
+
+  c) Cada vista retorna:
+       {
+         destroy() { /* limpia listeners si hace falta */ }
+       }
+     El router lo llama automáticamente al cambiar de vista.
+
+  d) Sin clases por ahora. Se usan objetos literales y factory functions.
+     Esto es por simplicidad y para que cualquiera pueda leer el código.
+
+  e) CSS:
+       - Variables en variables.css.
+       - Convención BEM ligera: bloque__elemento--modificador.
+       - Mobile-first. Media queries al final de cada archivo.
+
+------------------------------------------------------------------------
+7. NAVEGACIÓN (desktop vs móvil)
+------------------------------------------------------------------------
+
+  DESKTOP (>= 768px):
+    - Sidebar lateral con los 9 módulos directos.
+    - Bottom-nav oculto.
+    - Contenido a la derecha del sidebar.
+
+  MÓVIL (< 768px):
+    - Bottom-nav fijo abajo con 5 ítems:
+        Inicio · Almacén · Ventas · Finanzas · Más
+    - El ítem "Más" abre la pantalla /mas, que muestra un grid con
+      TODOS los módulos (Productos, Deudas, Monedas, Cierre, Historial,
+      Dashboard, Almacén, Ventas, Finanzas).
+
+  MOTIVO:
+    No caben 9 módulos legibles en la barra inferior de un móvil.
+    Se sigue el patrón estándar de apps (WhatsApp, Instagram, etc.):
+    accesos rápidos + menú "Más".
+
+------------------------------------------------------------------------
+8. ESTADO ACTUAL DEL PROYECTO
+------------------------------------------------------------------------
+
+  COMPLETADO:
+    [x] Estructura de carpetas completa.
+    [x] index.html base.
+    [x] Router SPA por hash funcionando.
+    [x] Store global (pub/sub) creado pero sin uso real todavía.
+    [x] Bus de eventos creado pero sin uso real todavía.
+    [x] Helper dom.js con el() y clear().
+    [x] Sidebar de navegación (desktop).
+    [x] Bottom-nav (móvil) con 5 ítems.
+    [x] Pantalla "Más" (/mas) con grid de todos los módulos.
+    [x] 10 vistas registradas y exportando correctamente:
+          dashboard, productos, almacen, ventas, deudas,
+          finanzas, monedas, cierre, historial, mas.
+    [x] Layout responsive con media queries.
+    [x] Variables CSS y estilos base.
+    [x] Repositorio en GitHub:
+          https://github.com/VictorHerdz10/Gesper
+
+  PENDIENTE (Fase 1 — Productos):
+    [ ] src/shared/storage.js     -> wrapper de localStorage.
+    [ ] src/shared/id.js          -> generador de IDs.
+    [ ] src/shared/constants.js   -> canales, estados, tipos.
+    [ ] src/shared/format.js      -> formateo de moneda.
+    [ ] src/data/db.js            -> inicialización de "BD" en localStorage.
+    [ ] src/data/productos.repo.js-> CRUD de productos.
+    [ ] src/services/productos.service.js -> reglas (ganancia, margen).
+    [ ] src/components/ui/button.js
+    [ ] src/components/ui/input.js
+    [ ] src/components/ui/modal.js
+    [ ] src/components/ui/table.js
+    [ ] src/components/ui/toast.js
+    [ ] src/modules/productos/productos.view.js -> listado real.
+    [ ] src/modules/productos/productos.form.js -> crear/editar.
+
+  PENDIENTE (Fases posteriores):
+    Fase 2:  Almacén (entradas, salidas, ajustes, stock mínimo).
+    Fase 3:  Almacén (mayorista + ofertas con precio ajustable).
+    Fase 4:  Ventas con conteo diario inicio/final.
+    Fase 5:  Deudas con canal de origen y abonos.
+    Fase 6:  Finanzas personales.
+    Fase 7:  Monedas y tasas de cambio.
+    Fase 8:  Dashboard consolidado.
+    Fase 9:  Cierre de día + imagen Canvas.
+    Fase 10: Historial / auditoría.
+    Fase 11: PWA, backups, export/import, tests.
+
+------------------------------------------------------------------------
+9. REGLAS DE NEGOCIO CLAVE (resumen)
+------------------------------------------------------------------------
+
+  - ganancia = precio_venta - precio_costo
+  - margen (%) = (ganancia / precio_venta) * 100
+
+  DOS CANALES DE VENTA INDEPENDIENTES:
+    * Canal "ventas"  -> punto de venta con conteo diario.
+    * Canal "almacen" -> mayorista y ofertas.
+
+  Cada canal calcula SU PROPIA inversión, venta y ganancia.
+  El dashboard suma ambos pero permite verlos por separado.
+
+  DEUDAS:
+    - Se generan desde cualquier canal (se guarda canal_origen).
+    - Los abonos NO son ganancia nueva. Son recuperación de capital.
+    - saldo = monto_total - monto_pagado.
+
+  CIERRE DE DÍA:
+    dinero_esperado_en_caja =
+        inversion_total + abonos_del_dia - gastos_del_dia
+
+    La ganancia NO entra aquí porque ya fue extraída.
+
+    Al cerrar:
+      - Los "finales" de StockPV pasan a ser "inicios" del día siguiente.
+      - Se genera imagen PNG con Canvas resumiendo el día.
+      - El día queda bloqueado.
+
+------------------------------------------------------------------------
+10. CÓMO ARRANCAR EL PROYECTO (para un colaborador nuevo)
+------------------------------------------------------------------------
+
+  1. Clonar el repositorio:
+       git clone https://github.com/VictorHerdz10/Gesper.git
+       cd Gesper
+
+  2. Levantar un servidor local (necesario para ES Modules):
+       Opción A (Python):
+         python -m http.server 5173
+       Opción B (Node):
+         npx serve .
+
+  3. Abrir en el navegador:
+       http://localhost:5173
+
+  4. Verificar que:
+       - Se ve el sidebar en desktop o bottom-nav en móvil.
+       - Se puede navegar entre módulos.
+       - La pantalla "Más" muestra los 9 módulos.
+       - La consola del navegador NO tiene errores.
+
+------------------------------------------------------------------------
+11. CÓMO TRABAJAR (workflow de git)
+------------------------------------------------------------------------
+
+  Ramas:
+    main  -> rama estable. Solo se hace merge cuando algo funciona.
+    dev   -> rama de desarrollo (opcional, si hay varios colaboradores).
+
+  Convención de commits (estilo Conventional Commits):
+    feat:     nueva funcionalidad
+    fix:      corrección de bug
+    refactor: cambio interno sin alterar comportamiento
+    style:    cambios de formato/estilos
+    docs:     documentación
+    chore:    tareas varias (config, deps)
+
+  Ejemplos:
+    feat: agregar CRUD de productos
+    fix: corregir cálculo de margen cuando precio_venta es 0
+    docs: actualizar TRASPASO con nueva convención
+
+  Flujo típico:
+    git pull
+    git checkout -b feat/productos
+    ... trabajar ...
+    git add .
+    git commit -m "feat: CRUD de productos"
+    git push origin feat/productos
+    (abrir Pull Request en GitHub si hay varios)
+
+------------------------------------------------------------------------
+12. CONTACTO Y DUDAS
+------------------------------------------------------------------------
+
+  Autor original: Victor Hernández
+  Repositorio: https://github.com/VictorHerdz10/Gesper
+
+  Si algo no está claro o hay que modificar la arquitectura, primero
+  actualizar este documento y docs/arquitectura.md. El código se
+  adapta a la documentación, no al revés.
+
+========================================================================
+FIN DEL DOCUMENTO
+========================================================================
